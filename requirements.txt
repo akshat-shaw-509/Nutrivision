@@ -1,0 +1,9 @@
+fastapi>=0.115.0,<1
+uvicorn>=0.30.0,<1
+pydantic>=2.6.0,<3
+python-multipart>=0.0.18,<1
+requests>=2.32.0,<3
+numpy>=2.0.0,<3
+Pillow>=11.0.0,<13
+phonenumbers>=8.13,<10
+tzdata>=2025.1
