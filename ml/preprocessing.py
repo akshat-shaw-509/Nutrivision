@@ -148,10 +148,10 @@ if __name__ == "__main__":
     # Create a synthetic test food image
     dummy_img = Image.new("RGB", (300, 300), color=(180, 80, 50))
     tensor = preprocessor.preprocess_image(dummy_img)
-    print(f"✓ Output tensor shape: {tensor.shape} (Channels x Height x Width)")
-    print(f"✓ Mean normalized value: {tensor.mean():.4f}")
+    print(f"[OK] Output tensor shape: {tensor.shape} (Channels x Height x Width)")
+    print(f"[OK] Mean normalized value: {tensor.mean():.4f}")
     
     # Test augmentation
     aug_img = preprocessor.augment_image(dummy_img)
-    print(f"✓ Augmentation test successful: size={aug_img.size}")
+    print(f"[OK] Augmentation test successful: size={aug_img.size}")
     print("[Module 1] Preprocessing pipeline verified!")

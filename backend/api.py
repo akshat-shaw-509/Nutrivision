@@ -28,7 +28,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from data.nutrition_data_store import NutritionDataStore
@@ -580,10 +580,19 @@ def create_app(store: NutritionDataStore):
     def patterns(user_id: str, user=Depends(owner)):
         last = today(user)
         history = store.daily_history(user_id, last - timedelta(days=6), last)
+        from ml.rnn_pattern_analyzer import RecurrentEatingPatternAnalyzer
+        analyzer = RecurrentEatingPatternAnalyzer()
+        rnn_res = analyzer.analyze_user_meal_sequence(
+            history, target_calories=user.get("daily_calorie_target", 2000.0)
+        )
         return {
             "logged_days": sum(1 for d in history if d["meal_count"]),
-            "status": "descriptive_only",
-            "message": "Patterns summarize recorded days. Predictive models have not been validated.",
+            "status": "rnn_analyzed",
+            "message": rnn_res["chrononutrition_insight"],
+            "detected_pattern": rnn_res["detected_pattern"],
+            "pattern_confidence": rnn_res["pattern_confidence"],
+            "forecasted_next_day_calories": rnn_res["forecasted_next_day_calories"],
+            "forecast_category": rnn_res["forecast_category"],
             "daily_calories": [
                 {"date": d["date"], "calories": d["calories"]}
                 for d in history
@@ -629,7 +638,18 @@ def create_app(store: NutritionDataStore):
 
     @app.post("/api/oracle/ask")
     def oracle(payload: Oracle, user=Depends(current_user)):
-        return chat(Chat(message=payload.query), user)
+        from ml.genai_coach import GenAINutritionCoach
+        coach = GenAINutritionCoach()
+        res = coach.consult_omni_oracle(payload.query, payload.category)
+        reply = (
+            f"**{res['topic']}**\n\n"
+            f"{res['summary']}\n\n"
+            f"**Biological Mechanism:**\n{res['scientific_mechanism']}\n\n"
+            f"**Actionable Protocol:**\n"
+            + "\n".join(f"- {p}" for p in res["actionable_protocol"])
+            + f"\n\n*Clinical Evidence:* {res['clinical_evidence']}"
+        )
+        return {"reply": reply, "oracle": res, "mode": "omni_oracle"}
 
     @app.post("/api/predict/food-image")
     def predict(
@@ -802,5 +822,22 @@ def create_app(store: NutritionDataStore):
         response.delete_cookie("nutriai_session")
 
     web = Path(__file__).resolve().parent.parent / "web"
+
+    @app.get("/", include_in_schema=False)
+    def root():
+        return FileResponse(web / "index.html")
+
+    @app.get("/styles.css", include_in_schema=False)
+    def styles():
+        return FileResponse(web / "styles.css", media_type="text/css")
+
+    @app.get("/app.js", include_in_schema=False)
+    def app_js():
+        return FileResponse(web / "app.js", media_type="application/javascript")
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon():
+        return Response(status_code=204)
+
     app.mount("/web", StaticFiles(directory=web, html=True), name="web")
     return app

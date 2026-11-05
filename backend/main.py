@@ -21,6 +21,14 @@ from data.nutrition_data_store import NutritionDataStore
 
 data_store = NutritionDataStore()
 
+# Prepopulate realistic demo users and foods on fresh startup
+try:
+    with data_store._get_connection() as _conn:
+        if _conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
+            data_store.seed_initial_data()
+except Exception:
+    pass
+
 # -------------------------------------------------------------
 # CORE PIPELINE CONTROLLER
 # -------------------------------------------------------------
@@ -60,12 +68,13 @@ def process_food_image_pipeline(image_bytes: bytes, serving_size_g: Optional[flo
 
     # 6. GenAI Explanation
     user = data_store.get_user(user_id) or {"primary_goal": "Fat Loss"}
+    goal_str = user.get("primary_goal") or "Fat Loss"
     explanation = genai_coach.generate_meal_explanation(
         food_name=nutrition["food_name"],
         calories=nutrition["calories"],
         macros=nutrition["macros"],
         ann_verdict=ann_result["verdict"],
-        user_goal=user.get("primary_goal", "Fat Loss").replace("_", " ").title()
+        user_goal=goal_str.replace("_", " ").title()
     )
 
     return {

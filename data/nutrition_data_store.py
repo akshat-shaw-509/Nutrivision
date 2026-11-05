@@ -183,10 +183,15 @@ class NutritionDataStore(AccountStore):
                     phone_number=COALESCE(excluded.phone_number, users.phone_number),
                     password_hash=COALESCE(excluded.password_hash, users.password_hash),
                     age=excluded.age,
+                    sex=excluded.sex,
+                    height_cm=excluded.height_cm,
                     current_weight_kg=excluded.current_weight_kg,
                     target_weight_kg=excluded.target_weight_kg,
                     activity_level=excluded.activity_level,
                     primary_goal=excluded.primary_goal,
+                    dietary_preference=excluded.dietary_preference,
+                    allergies=excluded.allergies,
+                    medical_conditions=excluded.medical_conditions,
                     daily_calorie_target=excluded.daily_calorie_target,
                     daily_protein_target_g=excluded.daily_protein_target_g,
                     daily_carbs_target_g=excluded.daily_carbs_target_g,
@@ -250,10 +255,26 @@ class NutritionDataStore(AccountStore):
             clean_input = normalize_phone(clean_input)
         except ValueError:
             pass
+        legacy_aliases = {
+            "+1 555-0199": "+12025550199",
+            "+15550199": "+12025550199",
+            "+1 555-0288": "+12025550288",
+            "+15550288": "+12025550288",
+            "+1 555-0377": "+12025550377",
+            "+15550377": "+12025550377",
+        }
+        if clean_input in legacy_aliases:
+            clean_input = legacy_aliases[clean_input]
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM users WHERE phone_number=?", (clean_input,))
             row = cursor.fetchone()
+            if not row:
+                cursor.execute(
+                    "SELECT * FROM users WHERE phone_number=? OR username=?",
+                    (phone_or_name.strip(), phone_or_name.strip()),
+                )
+                row = cursor.fetchone()
             if row:
                 u = dict(row)
                 if verify_password(password, u.get("password_hash", "")):
@@ -413,10 +434,16 @@ class NutritionDataStore(AccountStore):
             conn.commit()
         return log_id
 
-    def delete_meal_log(self, meal_log_id: str) -> bool:
+    def delete_meal_log(self, meal_log_id: str, user_id: Optional[str] = None) -> bool:
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM meal_logs WHERE id = ?", (meal_log_id,))
+            if user_id:
+                cursor.execute(
+                    "DELETE FROM meal_logs WHERE id = ? AND user_id = ?",
+                    (meal_log_id, user_id),
+                )
+            else:
+                cursor.execute("DELETE FROM meal_logs WHERE id = ?", (meal_log_id,))
             conn.commit()
             return cursor.rowcount > 0
 
@@ -703,7 +730,7 @@ class NutritionDataStore(AccountStore):
             {
                 "id": u1_id,
                 "username": "alex_morgan",
-                "phone_number": "+1 555-0199",
+                "phone_number": "+12025550199",
                 "password": "Password123!",
                 "email": "alex@nutriai.io",
                 "full_name": "Alex Morgan",
@@ -729,7 +756,7 @@ class NutritionDataStore(AccountStore):
             {
                 "id": u2_id,
                 "username": "sarah_chen",
-                "phone_number": "+1 555-0288",
+                "phone_number": "+12025550288",
                 "password": "KetoSecret123!",
                 "email": "sarah@nutriai.io",
                 "full_name": "Sarah Chen",
@@ -755,7 +782,7 @@ class NutritionDataStore(AccountStore):
             {
                 "id": u3_id,
                 "username": "marcus_vance",
-                "phone_number": "+1 555-0377",
+                "phone_number": "+12025550377",
                 "password": "AthletePower123!",
                 "email": "marcus@nutriai.io",
                 "full_name": "Marcus Vance",

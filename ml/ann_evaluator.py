@@ -49,8 +49,31 @@ class NutritionEvaluationANN:
         self.W3 = np.random.randn(8, 5) * np.sqrt(2.0 / 8)
         self.b3 = np.zeros((1, 5))
 
+        if os.path.exists(self.weights_file):
+            try:
+                with open(self.weights_file, "r", encoding="utf-8") as f:
+                    w = json.load(f)
+                self.W1 = np.array(w["W1"], dtype=np.float32)
+                self.b1 = np.array(w["b1"], dtype=np.float32)
+                self.W2 = np.array(w["W2"], dtype=np.float32)
+                self.b2 = np.array(w["b2"], dtype=np.float32)
+                self.W3 = np.array(w["W3"], dtype=np.float32)
+                self.b3 = np.array(w["b3"], dtype=np.float32)
+                return
+            except Exception:
+                pass
+
         # Train with backpropagation on standard nutritional benchmark dataset
         self.train_benchmark_data(epochs=120)
+        try:
+            with open(self.weights_file, "w", encoding="utf-8") as f:
+                json.dump({
+                    "W1": self.W1.tolist(), "b1": self.b1.tolist(),
+                    "W2": self.W2.tolist(), "b2": self.b2.tolist(),
+                    "W3": self.W3.tolist(), "b3": self.b3.tolist(),
+                }, f, indent=2)
+        except Exception:
+            pass
 
     @staticmethod
     def relu(z: np.ndarray) -> np.ndarray:
@@ -137,17 +160,26 @@ class NutritionEvaluationANN:
         Classifies the nutritional balance of a meal.
         Input: meal dictionary containing calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg
         """
-        macros = meal.get("macros", meal)
-        micros = meal.get("micros", meal)
+        macros = meal.get("macros") if isinstance(meal.get("macros"), dict) else meal
+        micros = meal.get("micros") if isinstance(meal.get("micros"), dict) else meal
 
-        feat = np.array([
-            float(meal.get("calories", 400)),
-            float(macros.get("protein_g", 20)),
-            float(macros.get("carbs_g", 40)),
-            float(macros.get("fat_g", 12)),
-            float(macros.get("fiber_g", 3)),
-            float(micros.get("sodium_mg", 400))
-        ], dtype=np.float32)
+        cal = float(meal.get("calories") or 0.0)
+        p = float(macros.get("protein_g") or meal.get("protein_g") or 0.0)
+        c = float(macros.get("carbs_g") or meal.get("carbs_g") or 0.0)
+        f = float(macros.get("fat_g") or meal.get("fat_g") or 0.0)
+        fiber = float(macros.get("fiber_g") or meal.get("fiber_g") or 0.0)
+        sodium = float(micros.get("sodium_mg") or meal.get("sodium_mg") or 0.0)
+
+        if cal <= 0 and p <= 0 and c <= 0 and f <= 0:
+            return {
+                "classification_index": -1,
+                "verdict": "Unspecified / Minimal Intake",
+                "confidence": 1.0,
+                "recommendation": "Zero calories logged. Add meal nutritional details to evaluate balance.",
+                "is_balanced": False,
+            }
+
+        feat = np.array([cal, p, c, f, fiber, sodium], dtype=np.float32)
 
         feat_norm = (feat - self.feature_means) / (self.feature_stds + 1e-6)
         feat_norm = feat_norm.reshape(1, -1)
@@ -190,6 +222,6 @@ if __name__ == "__main__":
         "sodium_mg": 280
     }
     result = ann.evaluate_meal_balance(test_meal)
-    print(f"✓ ANN Classification Verdict: '{result['verdict']}' (Confidence: {result['confidence'] * 100:.1f}%)")
-    print(f"✓ Coach Guidance: {result['recommendation']}")
+    print(f"[OK] ANN Classification Verdict: '{result['verdict']}' (Confidence: {result['confidence'] * 100:.1f}%)")
+    print(f"[OK] Coach Guidance: {result['recommendation']}")
     print("[Module 4] ANN model verified!")

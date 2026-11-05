@@ -184,6 +184,96 @@
         "calcium_mg": 40.0,
         "iron_mg": 2.2
       }
+    },
+    "cheeseburger_or_burger": {
+      "display_name": "Classic Cheeseburger with Lettuce & Tomato",
+      "default_serving_size": 220,
+      "serving_unit": "g",
+      "per_100g": {
+        "calories": 254.0,
+        "protein_g": 14.5,
+        "carbs_g": 24.2,
+        "fat_g": 11.8,
+        "fiber_g": 1.4,
+        "sodium_mg": 460.0,
+        "potassium_mg": 215.0,
+        "vitamin_c_mg": 2.5,
+        "vitamin_d_iu": 12.0,
+        "calcium_mg": 110.0,
+        "iron_mg": 2.6
+      }
+    },
+    "crispy_chicken_burger": {
+      "display_name": "Crispy Chicken Burger with Mayo",
+      "default_serving_size": 210,
+      "serving_unit": "g",
+      "per_100g": {
+        "calories": 248.0,
+        "protein_g": 15.2,
+        "carbs_g": 23.5,
+        "fat_g": 10.9,
+        "fiber_g": 1.1,
+        "sodium_mg": 480.0,
+        "potassium_mg": 230.0,
+        "vitamin_c_mg": 1.2,
+        "vitamin_d_iu": 4.0,
+        "calcium_mg": 45.0,
+        "iron_mg": 1.8
+      }
+    },
+    "pizza_slice": {
+      "display_name": "Margherita / Pepperoni Pizza Slice",
+      "default_serving_size": 140,
+      "serving_unit": "g",
+      "per_100g": {
+        "calories": 268.0,
+        "protein_g": 11.4,
+        "carbs_g": 32.0,
+        "fat_g": 10.4,
+        "fiber_g": 2.2,
+        "sodium_mg": 590.0,
+        "potassium_mg": 175.0,
+        "vitamin_c_mg": 3.0,
+        "vitamin_d_iu": 14.0,
+        "calcium_mg": 180.0,
+        "iron_mg": 2.1
+      }
+    },
+    "french_fries": {
+      "display_name": "Crispy Golden French Fries",
+      "default_serving_size": 120,
+      "serving_unit": "g",
+      "per_100g": {
+        "calories": 312.0,
+        "protein_g": 3.4,
+        "carbs_g": 41.5,
+        "fat_g": 15.2,
+        "fiber_g": 3.8,
+        "sodium_mg": 320.0,
+        "potassium_mg": 570.0,
+        "vitamin_c_mg": 4.8,
+        "vitamin_d_iu": 0.0,
+        "calcium_mg": 18.0,
+        "iron_mg": 1.0
+      }
+    },
+    "chicken_biryani": {
+      "display_name": "Fragrant Chicken Biryani with Spiced Rice",
+      "default_serving_size": 300,
+      "serving_unit": "g",
+      "per_100g": {
+        "calories": 178.0,
+        "protein_g": 10.8,
+        "carbs_g": 21.5,
+        "fat_g": 5.8,
+        "fiber_g": 1.5,
+        "sodium_mg": 390.0,
+        "potassium_mg": 240.0,
+        "vitamin_c_mg": 2.0,
+        "vitamin_d_iu": 6.0,
+        "calcium_mg": 30.0,
+        "iron_mg": 1.5
+      }
     }
   }
 }

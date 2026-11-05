@@ -69,21 +69,39 @@ class RecurrentEatingPatternAnalyzer:
         """
         Takes past days' calorie & macro totals and generates pattern analysis & forecasts.
         """
-        if not past_daily_totals:
-            # Provide initial standard baseline if user is on day 1
-            past_daily_totals = [
-                {"calories": target_calories * 0.95, "protein": 130, "hour_last_meal": 20, "water_ml": 2400},
-                {"calories": target_calories * 1.02, "protein": 140, "hour_last_meal": 21, "water_ml": 2500},
-                {"calories": target_calories * 0.98, "protein": 135, "hour_last_meal": 19, "water_ml": 2600}
+        # Filter and normalize valid logged days
+        clean_days = []
+        for day in (past_daily_totals or []):
+            cal = day.get("calories")
+            if cal is None:
+                continue
+            p = day.get("protein_g")
+            if p is None:
+                p = day.get("protein", 100.0)
+            h = day.get("hour_last_meal", 20.0)
+            w = day.get("water_ml", 2000.0)
+            clean_days.append({
+                "calories": float(cal),
+                "protein": float(p or 100.0),
+                "hour_last_meal": float(h or 20.0),
+                "water_ml": float(w or 2000.0),
+            })
+
+        if not clean_days:
+            # Provide initial standard baseline if user is on day 1 or no meals logged yet
+            clean_days = [
+                {"calories": target_calories * 0.95, "protein": 130.0, "hour_last_meal": 20.0, "water_ml": 2400.0},
+                {"calories": target_calories * 1.02, "protein": 140.0, "hour_last_meal": 21.0, "water_ml": 2500.0},
+                {"calories": target_calories * 0.98, "protein": 135.0, "hour_last_meal": 19.0, "water_ml": 2600.0}
             ]
 
         # Construct normalized feature sequence
         seq_features = []
-        for day in past_daily_totals:
-            cal_ratio = day.get("calories", target_calories) / max(target_calories, 1.0)
-            p_ratio = day.get("protein", 100) / 150.0
-            last_meal_hour = day.get("hour_last_meal", 20) / 24.0
-            water_ratio = day.get("water_ml", 2000) / 2500.0
+        for day in clean_days:
+            cal_ratio = day["calories"] / max(target_calories, 1.0)
+            p_ratio = day["protein"] / 150.0
+            last_meal_hour = day["hour_last_meal"] / 24.0
+            water_ratio = day["water_ml"] / 2500.0
             seq_features.append([cal_ratio, p_ratio, last_meal_hour, water_ratio])
 
         seq_arr = np.array(seq_features, dtype=np.float32)
@@ -92,7 +110,7 @@ class RecurrentEatingPatternAnalyzer:
         cal_scale, probs = self._forward_rnn_sequence(seq_arr)
 
         # Compute next-day forecasted calorie category
-        avg_recent_cal = np.mean([d.get("calories", target_calories) for d in past_daily_totals])
+        avg_recent_cal = float(np.mean([d["calories"] for d in clean_days]))
         forecasted_calories = round(float(avg_recent_cal * (1.0 + cal_scale * 0.05)), 1)
 
         # Determine pattern category
@@ -139,7 +157,7 @@ if __name__ == "__main__":
     ]
     
     result = analyzer.analyze_user_meal_sequence(demo_history, target_calories=1850)
-    print(f"✓ Detected Eating Pattern: '{result['detected_pattern']}'")
-    print(f"✓ Forecasted Next Day Calories: {result['forecasted_next_day_calories']} kcal ({result['forecast_category']})")
-    print(f"✓ Chrono-nutrition Insight: {result['chrononutrition_insight']}")
+    print(f"[OK] Detected Eating Pattern: '{result['detected_pattern']}'")
+    print(f"[OK] Forecasted Next Day Calories: {result['forecasted_next_day_calories']} kcal ({result['forecast_category']})")
+    print(f"[OK] Chrono-nutrition Insight: {result['chrononutrition_insight']}")
     print("[Module 5] RNN Eating Pattern module verified!")

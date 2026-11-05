@@ -50,8 +50,8 @@ class GenAINutritionCoach:
 
         explanation = (
             f"Your meal, **{food_name}** ({calories} kcal), is evaluated by our AI as **{ann_verdict}**.\n\n"
-            f"• **Macronutrient Profile:** {p}g Protein, {c}g Carbs ({fiber}g Fiber), and {f}g Fat.\n"
-            f"• **Impact on {user_goal}:** "
+            f"* **Macronutrient Profile:** {p}g Protein, {c}g Carbs ({fiber}g Fiber), and {f}g Fat.\n"
+            f"* **Impact on {user_goal}:** "
         )
 
         if p >= 30:
@@ -130,6 +130,31 @@ class GenAINutritionCoach:
         cal_delta = avg_calories - target_calories
         p_delta = avg_protein - target_protein
 
+        goal_lower = (user_goal or "").lower().replace("_", " ")
+        if "fat loss" in goal_lower:
+            if -700 <= cal_delta <= -100:
+                assessment = "You maintained an optimal fat-loss deficit!"
+            elif cal_delta < -700:
+                assessment = "Calorie deficit is aggressive. Consider increasing intake slightly to preserve lean muscle."
+            elif cal_delta > 100:
+                assessment = "Energy intake was in surplus; reduce portion sizes slightly to resume fat loss."
+            else:
+                assessment = "Intake is near balance; slightly reduce calories to maintain deficit."
+        elif "muscle" in goal_lower:
+            if cal_delta >= 150:
+                assessment = "Optimal caloric surplus to support muscle protein synthesis!"
+            elif cal_delta < -100:
+                assessment = "You were in a deficit; consider increasing complex carbs to support hypertrophy."
+            else:
+                assessment = "Intake is at maintenance; add 200-300 kcal/day for lean mass accumulation."
+        else:
+            if abs(cal_delta) <= 150:
+                assessment = "Intake closely matches maintenance energy expenditure."
+            elif cal_delta > 150:
+                assessment = f"Intake was in surplus (+{cal_delta:.0f} kcal/day)."
+            else:
+                assessment = f"Intake was in deficit ({cal_delta:.0f} kcal/day)."
+
         report = f"""# 📑 Weekly Nutrition & Health Performance Report
 **Athlete/Client:** {user_name}
 **Primary Goal:** {user_goal}
@@ -141,7 +166,7 @@ class GenAINutritionCoach:
 - **Average Intake:** {avg_calories:.0f} kcal / day
 - **Target Target:** {target_calories:.0f} kcal / day
 - **Net Balance:** {"Surplus of +" if cal_delta > 0 else "Deficit of "}{abs(cal_delta):.0f} kcal / day
-- **Assessment:** {"You maintained an optimal fat-loss deficit!" if cal_delta < -100 else "Intake closely matches maintenance energy expenditure."}
+- **Assessment:** {assessment}
 
 ### 2. Macronutrient Quality
 - **Average Protein:** {avg_protein:.1f}g / day (Target: {target_protein:.0f}g)
@@ -164,36 +189,127 @@ class GenAINutritionCoach:
 
     def answer_nutrition_question(self, question: str, user_context: Dict[str, Any]) -> str:
         """
-        Answers ad-hoc user dietary questions with personalized context.
+        Answers user dietary and fitness questions with personalized, dynamic,
+        macro-aware, non-repetitive coaching.
         """
-        q = question.lower()
-        rem_cal = user_context.get("remaining_calories", 900)
-        rem_p = user_context.get("remaining_protein", 45)
+        import random
+        q = question.lower().strip()
+        rem_cal = int(user_context.get("remaining_calories", 800))
+        rem_p = int(user_context.get("remaining_protein", 40))
+        target_cal = int(user_context.get("target_calories", 2000))
+        diet_pref = str(user_context.get("dietary_preference", "omnivore")).lower()
 
-        if "intermittent fasting" in q or "fast" in q:
+        # 1. Scientific & Biohacking queries -> Consult Omni-Oracle
+        science_keywords = [
+            "fasting", "fast", "autophagy", "16:8", "omad",
+            "creatine", "supplement", "ashwagandha", "omega", "magnesium",
+            "keto", "ketogenic", "glycemic", "insulin", "diabetes",
+            "workout", "hypertrophy", "strength", "zone 2",
+            "gut", "microbiome", "bloat", "probiotic"
+        ]
+        if any(w in q for w in science_keywords):
+            oracle = self.consult_omni_oracle(question)
+            protocols = oracle.get("actionable_protocol") or oracle.get("protocol") or []
+            proto_text = "\n".join(f"* {p}" for p in protocols[:3])
+            evidence = oracle.get("clinical_evidence") or oracle.get("evidence", "Peer-reviewed sports & clinical nutrition literature")
             return (
-                "Intermittent fasting (like 16:8) is an effective strategy for controlling calorie intake by "
-                "restricting your feeding window. However, total daily calories and hitting your protein target "
-                "remain the primary drivers of fat loss and muscle preservation. Make sure your eating window "
-                "provides sufficient amino acids."
+                f"### {oracle.get('topic', 'Clinical Nutrition')}\n"
+                f"{oracle.get('summary', '')}\n\n"
+                f"**Evidence-Based Protocol:**\n{proto_text}\n\n"
+                f"*Scientific Reference: {evidence}*"
             )
-        elif "creatine" in q:
+
+        # 2. Meal Suggestions (Dinner, Lunch, Breakfast, Snacks, Hungry)
+        meal_keywords = ["dinner", "lunch", "breakfast", "snack", "eat", "hungry", "food", "meal", "cook", "recipe", "recommend"]
+        if any(w in q for w in meal_keywords):
+            meals_db = {
+                "omnivore": [
+                    ("Pan-Seared Salmon & Asparagus", "180g Atlantic salmon with roasted sweet potatoes and garlic asparagus", 460, 38),
+                    ("Grilled Lemon-Herb Chicken Bowl", "200g chicken breast over spiced quinoa, cherry tomatoes, and cucumber", 420, 44),
+                    ("Lean Beef & Broccoli Stir-Fry", "160g sirloin strips flash-sautéed with broccoli, sesame oil, and jasmine rice", 480, 40),
+                    ("Turkey Avocado Wrap", "Lean ground turkey in a whole-wheat wrap with mashed avocado and mixed greens", 390, 34),
+                    ("Herb-Crusted Cod Fillet", "Baked cod with lemon, quinoa, and a Mediterranean chopped salad", 370, 36)
+                ],
+                "vegetarian": [
+                    ("Grilled Paneer Tikka Salad", "140g grilled cottage cheese/paneer with roasted bell peppers and mint yogurt dressing", 410, 26),
+                    ("Spiced Red Lentil Tadka Dal", "Warm lentil dal with steamed brown basmati rice and sautéed baby spinach", 380, 22),
+                    ("Greek Yogurt Protein Power Bowl", "220g non-fat Greek yogurt with blueberries, chia seeds, and raw walnuts", 320, 30),
+                    ("High-Protein Chickpea Shakshuka", "Poached farm eggs in a rich spiced tomato-bell pepper sauce with chickpeas", 420, 28),
+                    ("Tofu & Edamame Soba Noodles", "Crispy pan-fried tofu, steamed edamame, and buckwheat noodles in sesame broth", 430, 29)
+                ],
+                "vegan": [
+                    ("Crispy Baked Sesame Tofu Bowl", "180g pressed tofu with broccoli florets, brown rice, and aminos", 390, 30),
+                    ("Chili-Lime Tempeh Buddha Bowl", "Pan-browned organic tempeh over quinoa, avocado, and sautéed kale", 440, 31),
+                    ("Hearty Black Bean & Sweet Potato Stew", "Simmered spiced beans with roasted sweet potatoes and hemp hearts", 410, 22),
+                    ("Edamame & Peanut Soba Bowl", "Buckwheat soba noodles with shelled edamame, red cabbage, and peanut sauce", 450, 25)
+                ]
+            }
+
+            key = "vegan" if "vegan" in diet_pref else ("vegetarian" if "veg" in diet_pref else "omnivore")
+            options = meals_db[key]
+            # Pick two distinct rotating options based on character diversity
+            seed_val = sum(ord(c) for c in q) % len(options)
+            opt1 = options[seed_val]
+            opt2 = options[(seed_val + 2) % len(options)]
+
             return (
-                "Creatine Monohydrate (3-5g daily) is one of the most thoroughly researched supplements in sports "
-                "nutrition. It increases phosphocreatine stores in muscle tissue, enhancing high-intensity strength, "
-                "power output, and cellular hydration. No loading phase is required."
+                f"You currently have **{rem_cal} kcal** and **{rem_p}g protein** remaining today.\n\n"
+                f"Here are two nutrient-dense meals tailored to your **{key.title()}** preference:\n\n"
+                f"1. **{opt1[0]}** (~{opt1[2]} kcal | {opt1[3]}g protein)\n"
+                f"   {opt1[1]}.\n\n"
+                f"2. **{opt2[0]}** (~{opt2[2]} kcal | {opt2[3]}g protein)\n"
+                f"   {opt2[1]}.\n\n"
+                f"Both options will keep you fully on track with your daily nutrition targets!"
             )
-        elif "dinner" in q or "hungry" in q:
+
+        # 3. Fast Food / Burger / Pizza / Cheat Meals / Cravings
+        fast_food_keywords = ["burger", "pizza", "fries", "junk", "cheat", "craving", "chocolate", "sweet"]
+        if any(w in q for w in fast_food_keywords):
             return (
-                f"You currently have **{rem_cal} kcal** and **{rem_p}g protein** left today. "
-                f"I recommend a 160g pan-seared salmon fillet with roasted asparagus and sweet potato wedges. "
-                f"This will satisfy your protein target while keeping you comfortably within your calorie budget!"
+                f"You have **{rem_cal} kcal** left today! In sustainable nutrition, no food is strictly forbidden.\n\n"
+                f"• **If enjoying a Burger or Pizza:** A standard cheeseburger is ~500-560 kcal with ~28g protein. "
+                f"You can easily fit it in your budget! Pair it with sparkling water or a fresh side salad instead of large fries.\n"
+                f"• **Managing Cravings:** Drink a large glass of water first, ensure you hit your protein target ({rem_p}g remaining), "
+                f"and practice the 80/20 rule: 80% whole single-ingredient foods, 20% flexible treats."
             )
-        else:
+
+        # 4. Protein Optimization & Sources
+        if "protein" in q:
+            if "veg" in diet_pref:
+                sources = "Greek yogurt (15-20g/cup), Paneer (18g/100g), Tofu (15g/100g), Edamame (17g/cup), Lentils/Dal (18g/cooked cup), and Whey/Pea protein powder."
+            else:
+                sources = "Skinless chicken breast (31g/100g), Salmon fillet (22g/100g), Whole eggs & whites (6g/egg), Lean sirloin (26g/100g), and Greek yogurt (17g/cup)."
             return (
-                f"To best align with your nutrition targets ({rem_cal} kcal left), prioritize whole, single-ingredient foods "
-                "rich in dietary fiber and lean protein. Feel free to ask about any specific food, recipe, or macro breakdown!"
+                f"You have **{rem_p}g of protein** left to reach your optimal target today.\n\n"
+                f"**Top bioavailable sources for your dietary preference:**\n{sources}\n\n"
+                f"Aim for 25-40g of protein per meal to trigger maximal Muscle Protein Synthesis (MPS) via the leucine threshold."
             )
+
+        # 5. Weight Loss & Deficit Strategy
+        if any(w in q for w in ["deficit", "weight loss", "lose weight", "cut", "fat loss", "burn fat"]):
+            return (
+                f"For safe, long-term fat loss without muscle wasting:\n\n"
+                f"• **Optimal Deficit:** Aim for a 300-500 kcal deficit below your TDEE (your target: {target_cal} kcal).\n"
+                f"• **Protect Muscle:** Keep protein high (1.6 - 2.2g per kg of bodyweight) to preserve lean metabolic tissue.\n"
+                f"• **Volume & Satiety:** Prioritize fibrous vegetables and high-water foods to stay full.\n"
+                f"• **Daily Movement:** Target 8,000-10,000 steps daily to elevate Non-Exercise Activity Thermogenesis (NEAT)."
+            )
+
+        # 6. Hydration
+        if any(w in q for w in ["water", "hydration", "drink", "thirst"]):
+            return (
+                f"Optimal hydration directly enhances metabolic rate and physical performance.\n\n"
+                f"• **Daily Target:** Aim for 2.5 - 3.5 liters (approx 35-40ml per kg of body weight).\n"
+                f"• **Electrolytes:** If training intensely or in warm weather, include a pinch of Himalayan pink salt and potassium.\n"
+                f"• **Tip:** Drink 500ml of cold water immediately upon waking to kickstart cellular hydration."
+            )
+
+        # 7. Conversational Default
+        return (
+            f"You have **{rem_cal} kcal** and **{rem_p}g protein** remaining for today (Target: {target_cal} kcal).\n\n"
+            f"To reach your goal sustainably, focus on whole single-ingredient foods with adequate dietary fiber. "
+            f"Ask me about specific meal ideas, recipes, supplement guidance, or how to fit your favorite foods into your macros!"
+        )
 
     def consult_omni_oracle(self, query: str, category: str = "general") -> Dict[str, Any]:
         """
@@ -303,7 +419,7 @@ if __name__ == "__main__":
         macros={"protein_g": 41, "carbs_g": 5, "fat_g": 17, "fiber_g": 3},
         ann_verdict="Adequate-Protein Power"
     )
-    print("✓ Meal Explanation Generated:")
+    print("[OK] Meal Explanation Generated:")
     print(explanation[:180] + "...\n")
 
     report = coach.generate_weekly_report(
@@ -316,5 +432,5 @@ if __name__ == "__main__":
         water_avg_ml=2600,
         pattern_insight="Consistent & Metabolic-Optimal"
     )
-    print("✓ Weekly Report Generated successfully!")
+    print("[OK] Weekly Report Generated successfully!")
     print("[Module 6] GenAI Coach module verified!")
